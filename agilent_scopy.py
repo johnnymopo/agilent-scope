@@ -17,6 +17,8 @@ class scope:
             self.yincrement = 0
             self.yorigin = 0
             self.yreference = 0
+            self.range = 0
+            self.offset = 0
         
     def __init__(self, host, port=port):
         self.host = host
@@ -26,7 +28,7 @@ class scope:
         self.s.connect((host,port))
         print 'device info:'
         print self.sendRecvString('*IDN?\n')
-        self.s.send('WAV:POIN:MODE RAW\n')
+        self.s.send('WAV:POIN:MODE NORM\n')
         self.s.send('WAV:FORM WORD\n')
         self.getParams(disp=1)
 
@@ -35,13 +37,13 @@ class scope:
         self.s.send('STOP\n')
         self.s.send('WAV:DATA?\n') 
         rawdata = struct.unpack('<'+str(self.settings.points)+'H',self.s.recv(2**15)[10:-1])
-        #self.data = [0.0]*self.settings.points
+        self.data = [0.0]*self.settings.points
         self.rawdata = [0.0]*self.settings.points
         for i in xrange(self.settings.points):
             self.rawdata[i] = rawdata[i]
-            #self.data[i] = self.settings.yincrement * (rawdata[i] - self.settings.yreference) + self.settings.yorigin
+            self.data[i] = (self.settings.range / 2**8) * rawdata[i] - self.settings.offset
         self.s.send('RUN\n')
-        return self.rawdata
+        return self.data
 
     def sendString(self,string):
         self.s.send(string)
@@ -81,6 +83,8 @@ class scope:
         self.settings.yincrement = float(preamble[7])
         self.settings.yorigin = float(preamble[8])
         self.settings.yreference = float(preamble[9])
+        self.settings.range = float(self.sendRecvString('CHAN1:RANG?\n'))
+        self.settings.offset = float(self.sendRecvString('CHAN1:OFFS?\n'))
         if disp == 1:
             print 'format is                '+self.settings.format
             print 'aquisition type is       '+self.settings.dtype
@@ -92,6 +96,8 @@ class scope:
             print 'voltage step is          '+str(self.settings.yincrement)
             print 'voltage origin is        '+str(self.settings.yorigin)
             print 'voltage reference is     '+str(self.settings.yreference)
+            print 'scope range is           '+str(self.settings.range)
+            print 'scope offset is          '+str(self.settings.offset)
             print ''
 
 
